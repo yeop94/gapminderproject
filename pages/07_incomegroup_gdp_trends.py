@@ -8,6 +8,10 @@ st.write(
 )
 st.markdown("---")
 
+@st.cache_data
+def load_data():
+    return pd.read_csv('data/merged_gapminder.csv')
+
 df = load_data()
 groups = df.groupby(['year','income_groups']).gdp_pcap.mean().reset_index()
 fig = px.line(
