@@ -48,41 +48,11 @@ with st.expander("🔍 사용 설명서 설명 보기"):
     )
 with st.expander("💡 학생 토론 질문"):
     st.markdown(
-        "1. 인구 급증이 환경과 도시화에 미치는 영향은 무엇일까요?
-"
+        "1. 인구 급증이 환경과 도시화에 미치는 영향은 무엇일까요?"
         "2. 인구가 감소하는 국가의 사례와 원인은 무엇인가요?"
     )
 with st.expander("📚 교육적 함의 및 확장 활동"):
     st.write(
-        "- 인구 변화의 경제·사회적 영향 분석.
-"
+        "- 인구 변화의 경제·사회적 영향 분석."
         "- 지속가능한 도시 계획 아이디어 제안."
     )
-```python
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-
-@st.cache_data
-def load_data():
-    return pd.read_csv('data/merged_gapminder.csv')
-
-df=load_data()
-
-st.title("SDG 11: 인구증가 상위 10개국")
-st.write("인구증가량 상위 국가를 지도에 표시합니다.")
-st.markdown("---")
-
-y1,y2=st.select_slider("기간 선택",options=sorted(df.year.unique()),value=(2000,2020))
-pop=df[df.year.isin([y1,y2])].pivot(index='country',columns='year',values='pop').dropna()
-pop['change']=pop[y2]-pop[y1]
-top10=pop.sort_values('change',ascending=False).head(10).reset_index()
-fig=px.scatter_geo(top10,locations='country',locationmode='ISO-3',size='change',projection='natural earth',title=f"{y1}→{y2} 인구증가량 Top10")
-st.plotly_chart(fig,use_container_width=True)
-
-with st.expander("🔍 사용 설명서 설명 보기"):
-    st.write("- 기간 슬라이더로 연도 설정.\n- 원 크기: 증가량 표시.")
-with st.expander("💡 학생 토론 질문"):
-    st.markdown("1. 인구 급증 영향?\n2. 감소 사례?")
-with st.expander("📚 교육적 함의 및 확장 활동"):
-    st.write("- 사회문제 분석.\n- 도시계획 설계.")
