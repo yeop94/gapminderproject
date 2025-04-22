@@ -8,6 +8,10 @@ st.write(
 )
 st.markdown("---")
 
+@st.cache_data
+def load_data():
+    return pd.read_csv('data/merged_gapminder.csv')
+
 df = load_data()
 
 year = st.slider("연도 선택", int(df.year.min()), int(df.year.max()), 2000)
