@@ -8,6 +8,10 @@ st.write(
 )
 st.markdown("---")
 
+@st.cache_data
+def load_data():
+    return pd.read_csv('data/merged_gapminder.csv')
+
 df = load_data()
 future = df[df.year <= 2050].groupby('year').agg({'gdp_pcap':'mean','lex':'mean'}).reset_index()
 fig1 = px.line(future, x='year', y='gdp_pcap', labels={'gdp_pcap':'평균 1인당 GDP'}, title='GDP 전망')
