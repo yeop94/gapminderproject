@@ -1,12 +1,12 @@
 import streamlit as st
 
-st.title("🌍 SDGs 분석 대시보드 by 석리송🎵")
-
 st.set_page_config(
     page_title="🌍 SDGs 프로젝트 대시보드",
     page_icon="📊",
     layout="wide",
 )
+
+st.title("🌍 SDGs 분석 대시보드 by 석리송🎵")
 
 st.markdown(
     """
