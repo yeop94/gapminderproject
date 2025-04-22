@@ -8,6 +8,10 @@ st.write(
 )
 st.markdown("---")
 
+@st.cache_data
+def load_data():
+    return pd.read_csv('data/merged_gapminder.csv')
+
 df = load_data()
 fig = px.scatter(
     df, x='gdp_pcap', y='lex', animation_frame='year', log_x=True,
