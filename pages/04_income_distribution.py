@@ -8,6 +8,10 @@ st.write(
 )
 st.markdown("---")
 
+@st.cache_data
+def load_data():
+    return pd.read_csv('data/merged_gapminder.csv')
+
 df = load_data()
 years = st.multiselect("연도 선택", options=sorted(df.year.unique()), default=[2000,2020])
 sub = df[df.year.isin(years)]
