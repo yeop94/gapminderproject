@@ -8,6 +8,10 @@ st.write(
 )
 st.markdown("---")
 
+@st.cache_data
+def load_data():
+    return pd.read_csv('data/merged_gapminder.csv')
+
 df = load_data()
 threshold = st.number_input("저소득 기준 (USD)", value=1000)
 low = df[df.gdp_pcap < threshold]
