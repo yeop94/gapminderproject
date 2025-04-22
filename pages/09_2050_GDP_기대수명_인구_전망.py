@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.title("SDG 8: 여러 국가의 2050년까지 GDP · 기대수명 · 인구 비교")
+st.title("SDG 8: 여러 국가의 GDP·기대수명·인구 비교")
 st.write(
     "다중 선택을 통해 주요 국가뿐 아니라 전 세계 국가들의 1인당 GDP, 기대수명, 인구 변화를 비교할 수 있습니다."
 )
@@ -14,12 +14,14 @@ def load_data():
     df_geo  = pd.read_csv('data/ddf--entities--geo--country.csv', usecols=['country','name'])
     df_geo  = df_geo.rename(columns={'name':'full_name'})
     df = df_main.merge(df_geo, on='country', how='left')
+    # 이름 오버라이드
     override = {
         'South Korea':       'Republic of Korea',
         'USA':               'United States',
         'UK':                'United Kingdom',
     }
     df['full_name'] = df['full_name'].replace(override)
+    # 국기 이모지
     flags = {
         'United States':     '🇺🇸',
         'China':             '🇨🇳',
@@ -38,7 +40,10 @@ def load_data():
     )
     return df
 
+# 데이터 로드 후, 연도 범위 계산
 df = load_data()
+min_year = int(df['year'].min())
+max_year = int(df['year'].max())
 
 major = [
     f"{emoji} {name}" for name, emoji in [
@@ -62,7 +67,7 @@ options = major + others
 
 st.sidebar.markdown("### 🌍 비교할 국가 선택")
 selected = st.sidebar.multiselect(
-    "최소 1개 이상의 국가를 선택하세요",
+    f"최소 1개 이상의 국가를 선택하세요 ({min_year}–{max_year}년)",
     options=options,
     default=[major[6]]  # 🇰🇷 Republic of Korea
 )
@@ -71,9 +76,11 @@ if not selected:
     st.sidebar.warning("하나 이상의 국가를 선택해야 그래프를 표시합니다.")
     st.stop()
 
+# 선택 국가 & 연도 범위 필터링
 df_sel = df[
     df['display_name'].isin(selected) &
-    (df['year'] <= 2050)
+    (df['year'] >= min_year) &
+    (df['year'] <= max_year)
 ]
 
 # 1인당 GDP 비교
@@ -102,8 +109,8 @@ st.plotly_chart(fig_pop, use_container_width=True)
 
 with st.expander("🔍 사용 설명서"):
     st.write(
-        "- 사이드바에서 최소 하나의 국가를 선택하세요 (기본값: 🇰🇷 Republic of Korea).\n"
-        "- 선택된 국가들의 1800~2050년 범위 데이터를 한 눈에 비교할 수 있습니다."
+        f"- 사이드바에서 최소 하나 이상의 국가를 선택하세요 (기본값: 🇰🇷 Republic of Korea).\n"
+        f"- 선택된 국가들의 {min_year}년부터 {max_year}년까지의 데이터를 한 눈에 비교할 수 있습니다."
     )
 
 with st.expander("💡 학생 토론 질문"):
