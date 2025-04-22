@@ -2,12 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.title("SDG 8: 국가별 GDP·기대수명·인구 비교 (기간 선택 가능)")
-st.write(
-    "다중 선택과 기간 슬라이더를 통해 여러 국가의 경제·보건·인구 지표를 비교할 수 있습니다."
-)
-st.markdown("---")
-
+# 데이터 로드 및 country → full name 매핑
 @st.cache_data
 def load_data():
     df_main = pd.read_csv('data/merged_gapminder.csv')
@@ -16,131 +11,84 @@ def load_data():
           .rename(columns={'name':'full_name'})
     )
     df = df_main.merge(df_geo, on='country', how='left')
-    # 이름 오버라이드
+    # 예시 오버라이드(필요시 추가)
     df['full_name'] = df['full_name'].replace({
-        'South Korea':       'Republic of Korea',
-        'USA':               'United States',
-        'UK':                'United Kingdom',
+        'South Korea':    'Republic of Korea',
+        'USA':            'United States',
+        'UK':             'United Kingdom',
     })
-    # 국기 이모지
-    flags = {
-        'United States':     '🇺🇸',
-        'China':             '🇨🇳',
-        'India':             '🇮🇳',
-        'Japan':             '🇯🇵',
-        'Germany':           '🇩🇪',
-        'United Kingdom':    '🇬🇧',
-        'Republic of Korea': '🇰🇷',
-        'France':            '🇫🇷',
-        'Brazil':            '🇧🇷',
-        'Canada':            '🇨🇦',
-        'Australia':         '🇦🇺'
-    }
-    df['display_name'] = df['full_name'].apply(
-        lambda n: f"{flags[n]} {n}" if n in flags else n
-    )
+    # display_name 컬럼에 이모지 추가하거나 그대로 사용
+    df['display_name'] = df['full_name']
     return df
 
-# 데이터 로드
 df = load_data()
-min_year, max_year = int(df['year'].min()), int(df['year'].max())
 
-# 사이드바: 기간 선택
-st.sidebar.markdown("### ⏳ 기간 선택")
-year_start, year_end = st.sidebar.slider(
-    "비교할 연도 범위",
-    min_value=min_year,
-    max_value=max_year,
-    value=(min_year, max_year),
-    step=1
-)
+st.title("SDG 11: 인구증가·감소 Top 10 국가")
+st.write("선택한 기간 동안 인구 증가량 및 감소량 Top 10 국가를 지도로 시각화합니다.")
+st.markdown("---")
 
-# 사이드바: 국가 다중 선택
-major = [
-    f"{emoji} {name}" for name, emoji in [
-        ("United States", "🇺🇸"),
-        ("China", "🇨🇳"),
-        ("India", "🇮🇳"),
-        ("Japan", "🇯🇵"),
-        ("Germany", "🇩🇪"),
-        ("United Kingdom", "🇬🇧"),
-        ("Republic of Korea", "🇰🇷"),
-        ("France", "🇫🇷"),
-        ("Brazil", "🇧🇷"),
-        ("Canada", "🇨🇦"),
-        ("Australia", "🇦🇺")
-    ]
-]
-all_countries = sorted(df['display_name'].unique())
-others = [c for c in all_countries if c not in major]
-options = major + others
+# 기간 슬라이더
+years = sorted(df['year'].unique())
+y1, y2 = st.select_slider("기간 선택", options=years, value=(years[0], years[-1]))
 
-st.sidebar.markdown("### 🌍 국가 선택")
-selected = st.sidebar.multiselect(
-    "최소 1개 이상 선택하세요",
-    options=options,
-    default=[major[6]]  # 🇰🇷 Republic of Korea
+# 피벗하여 change 계산
+pop = (
+    df[df.year.isin([y1, y2])]
+    .pivot(index='country', columns='year', values='pop')
+    .dropna()
 )
+pop['change'] = pop[y2] - pop[y1]
 
-if not selected:
-    st.sidebar.warning("하나 이상의 국가를 선택해야 합니다.")
-    st.stop()
+# country 코드 → ISO3, full name 매핑
+pop['iso_code']     = pop.index.str.upper()
+pop['display_name'] = pop.index.map(df.set_index('country')['display_name'])
 
-# 필터링: 국가 + 연도 범위
-df_sel = df[
-    (df['display_name'].isin(selected)) &
-    (df['year'] >= year_start) &
-    (df['year'] <= year_end)
-]
+# ▶ 인구증가 Top10
+top10 = pop.sort_values('change', ascending=False).head(10).reset_index()
+fig_inc = px.scatter_geo(
+    top10,
+    locations='iso_code',
+    size='change',
+    hover_name='display_name',
+    projection='natural earth',
+    title=f"{y1} → {y2} 인구증가량 Top 10"
+)
+fig_inc.update_traces(
+    hovertemplate="<b>%{hovertext}</b><br>증가량: %{marker.size:,}명"
+)
+st.plotly_chart(fig_inc, use_container_width=True)
 
-# 1인당 GDP 그래프 (hover_name + markers 추가)
-fig_gdp = px.line(
-    df_sel,
-    x='year', y='gdp_pcap', color='display_name',
-    hover_name='display_name', markers=True,
-    labels={'gdp_pcap':'1인당 GDP (USD)', 'year':'연도', 'display_name':'국가'},
-    title=f"1인당 GDP ({year_start}–{year_end}) 비교"
+# ▶ 인구감소 Top10
+bottom10 = pop.sort_values('change', ascending=True).head(10).reset_index()
+bottom10['abs_change'] = bottom10['change'].abs()
+fig_dec = px.scatter_geo(
+    bottom10,
+    locations='iso_code',
+    size='abs_change',
+    hover_name='display_name',
+    projection='natural earth',
+    title=f"{y1} → {y2} 인구감소량 Top 10"
 )
-fig_gdp.update_traces(
-    hovertemplate="<b>%{hovertext}</b><br>연도: %{x}<br>1인당 GDP: %{y:.2f}"
+fig_dec.update_traces(
+    hovertemplate="<b>%{hovertext}</b><br>감소량: %{marker.size:,}명"
 )
-st.plotly_chart(fig_gdp, use_container_width=True)
-
-# 기대수명 그래프
-fig_lex = px.line(
-    df_sel,
-    x='year', y='lex', color='display_name',
-    hover_name='display_name', markers=True,
-    labels={'lex':'기대수명 (년)', 'year':'연도', 'display_name':'국가'},
-    title=f"기대수명 ({year_start}–{year_end}) 비교"
-)
-fig_lex.update_traces(
-    hovertemplate="<b>%{hovertext}</b><br>연도: %{x}<br>기대수명: %{y:.1f}년"
-)
-st.plotly_chart(fig_lex, use_container_width=True)
-
-# 인구 수 그래프
-fig_pop = px.line(
-    df_sel,
-    x='year', y='pop', color='display_name',
-    hover_name='display_name', markers=True,
-    labels={'pop':'인구 수', 'year':'연도', 'display_name':'국가'},
-    title=f"인구 수 ({year_start}–{year_end}) 비교"
-)
-fig_pop.update_traces(
-    hovertemplate="<b>%{hovertext}</b><br>연도: %{x}<br>인구 수: %{y:,}명"
-)
-st.plotly_chart(fig_pop, use_container_width=True)
+st.plotly_chart(fig_dec, use_container_width=True)
 
 with st.expander("🔍 사용 설명서"):
     st.write(
-        f"- 사이드바에서 연도 범위를 {year_start}년부터 {year_end}년으로 설정할 수 있습니다.\n"
-        "- 다중 선택으로 비교하고 싶은 국가를 지정하세요.\n"
-        "- 그래프 위 포인트에 마우스를 올리면 나라 이름과 각 지표 수치를 확인할 수 있습니다."
+        "- 슬라이더에서 시작 연도와 종료 연도를 조정하세요.\n"
+        "- 상단 지도는 인구 증가 Top 10, 하단 지도는 인구 감소 Top 10을 보여줍니다.\n"
+        "- 마우스를 올리면 국가명과 변화량이 바로 확인됩니다."
     )
 
-with st.expander("💡 토론 질문"):
+with st.expander("💡 학생 토론 질문"):
     st.markdown(
-        "1. 선택한 기간 동안 국가 간 성장 추세 차이는 무엇이 원인일까요?\n"
-        "2. 인구 변화가 GDP·기대수명에 미친 영향을 분석해 보세요."
+        "1. 인구 급증이 도시화나 자원 문제에 어떤 영향을 미칠까요?\n"
+        "2. 인구 감소 국가의 사회·경제적 원인은 무엇이라고 생각하나요?"
+    )
+
+with st.expander("📚 교육적 함의 및 확장 활동"):
+    st.write(
+        "- 인구 변화에 따른 정책 요구 분석\n"
+        "- 지속가능한 도시·지역 계획 아이디어 제안"
     )
